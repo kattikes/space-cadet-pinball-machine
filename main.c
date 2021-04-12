@@ -1,4 +1,4 @@
- /*
+  /*
  * PinballMachine.c
  *
  * Created: 3/30/2021 1:24:14 PM
@@ -54,14 +54,16 @@ void UART_putstring(char* StringPtr) {
 	}
 }
 
-void Initialize() {
+void initbreakBeam(void) {
 	//Set PD3 as input pin for break beam sensor 1
 	DDRD &= ~(1<<DDD3);
 	PORTD |= (1<<PORTD3);
 	//Set PD2 as input pin for break beam sensor 2
 	DDRD &= ~(1<<DDD2);
 	PORTD |= (1<<PORTD2);
-	
+}
+
+void initJoyStick(void) {	
 	//Clear power reduction for ADC
 	PRR &= ~(1<<PRADC);
 	//Select Vref = AVcc
@@ -93,7 +95,6 @@ void Initialize() {
 void startGameTimer(void) {
 	//Disable global interrupts
 	cli();
-	
 	//Prescale Timer 1 by 1/1024
 	TCCR1B |= (1<<CS10);
 	TCCR1B &= ~(1<<CS11);
@@ -105,7 +106,6 @@ void startGameTimer(void) {
 	TCCR1B &= ~(1<<WGM13);
 	//Enable interrupt for Timer 1
 	TIMSK1 |= (1<<OCIE1A);
-	
 	//Enable global interrupts
 	sei();
 }
@@ -113,7 +113,7 @@ void startGameTimer(void) {
 /* Gets position of either Joystick0 or Joystick1. 
    Position is of the form (x, y), where 1 <= x, y <= 1023. 
    Top rightmost position is (1023, 1023). Bottom leftmost position is (1, 1).
-   Centered position is about  (516, 517).
+   Centered/equilibrium position is about  (516, 517).
 */
 INT_ARRAY getJoyStickPosition(int joyStickName) {
 	int x = 0;
@@ -146,15 +146,14 @@ INT_ARRAY getJoyStickPosition(int joyStickName) {
 		//Save Yout
 		y = ADC;
 	}
-	//Return position = (x, y)
 	position.xy[0] = x;
 	position.xy[1] = y;
-	
+	//Return position = (x, y)
 	return position;
 }
 
+//Increments score every 4 seconds
 ISR(TIMER1_COMPA_vect) {
-	//Increments score every 4 seconds
 	score += 1;
 	readyToUpdateScore = 1;
 }
@@ -164,18 +163,7 @@ int main(void)
 	//Initialize LCD, serial printing, ADC
 	lcd_init();
 	UART_init();
-	Initialize();
-	
-		//Wait until game has begun
-		/*while(gameHasBegun == 0) {
-			sensorState1 = (PIND & (1<<PIND3));
-			sprintf(str, "%d \n", sensorState1);
-			UART_putstring(str);
-			if ((sensorState1 == 0) && (lastState1 > 0)) {
-				gameHasBegun = 1;	
-			} 
-			lastState1 = sensorState1;	
-		}*/
+	initJoyStick();
 	
 	while(1) {
 		//Load pinball machine welcome screen
@@ -183,9 +171,13 @@ int main(void)
 		lcd_write_word((uint8_t*) "Welcome to Game");
 		lcd_goto_xy(1,0);
 		lcd_write_word((uint8_t*) "Ready to Begin?");
-	
+		
+		//Initialize break beam sensor
+		initbreakBeam();
+		
 		//Wait until game has begun
 		while(gameHasBegun == 0) {
+			//Check if top break beam sensor has been tripped
 			sensorState1 = (PIND & (1<<PIND3));
 			sprintf(str, "%d \n", sensorState1);
 			UART_putstring(str);
@@ -197,12 +189,17 @@ int main(void)
 	
 		//When game has begun, display "Game has Begun" screen and score
 		startGameTimer();
+		score = 0;
 		lcd_clear();
 		lcd_write_word((uint8_t*) "Game has Begun");
 		lcd_goto_xy(1,0);
 		sprintf(str, "Score: %d", score);
 		lcd_write_word((uint8_t*) str);
 	
+		//Re-initialize break beam sensor
+		initbreakBeam();
+		
+		//Increment score, read joystick, move servo
 		while(gameHasBegun) {
 			//If Timer1 has overflowed, update score
 			if (readyToUpdateScore) {
@@ -223,7 +220,20 @@ int main(void)
 			sprintf(str, "(%d, %d) \n", position1.xy[0], position1.xy[1]);
 			UART_putstring(str);
 			
-			//Check if break beam sensor has been tripped
+			/* Below is just example code, which just determines if the 
+			   joysticks have been pushed to their topmost y position, 
+			   then the respective servo motor is triggered. Feel free
+			   to implement this section (including the conditional 
+			   statements) as you wish
+			*/
+			if (position0.xy[1] > 700) {
+				//Move right servo motor
+			}
+			if (position1.xy[1] > 700) {
+				//Move left servo motor
+			}
+			
+			//Check if bottom break beam sensor has been tripped
 			sensorState2 = (PIND & (1<<PIND2));
 			if ((sensorState2 == 0) && (lastState2 > 0)) {
 				gameHasBegun = 0;
@@ -234,11 +244,11 @@ int main(void)
 		//Game is over, display "Game Over" screen and final score
 		lcd_clear();
 		lcd_write_word((uint8_t*) "Game Over");
-		//Disable interrupt for Timer 0
-		TIMSK1 &= ~(1<<OCIE1A);
+		lcd_goto_xy(1,0);
+		sprintf(str, "Score: %d", score);
+		lcd_write_word((uint8_t*) str);
+		
 		//Delay for 10 seconds
 		_delay_ms(10000);
 	}
 }
-
-
