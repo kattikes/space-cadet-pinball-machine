@@ -179,8 +179,6 @@ int main(void)
 		while(gameHasBegun == 0) {
 			//Check if top break beam sensor has been tripped
 			sensorState1 = (PIND & (1<<PIND3));
-			sprintf(str, "%d \n", sensorState1);
-			UART_putstring(str);
 			if ((sensorState1 == 0) && (lastState1 > 0)) {
 				gameHasBegun = 1;	
 			} 
@@ -195,12 +193,9 @@ int main(void)
 		lcd_goto_xy(1,0);
 		sprintf(str, "Score: %d", score);
 		lcd_write_word((uint8_t*) str);
-	
-		//Re-initialize break beam sensor
-		initbreakBeam();
 		
 		//Increment score, read joystick, move servo
-		while(gameHasBegun) {
+		while(gameHasBegun == 1) {
 			//If Timer1 has overflowed, update score
 			if (readyToUpdateScore) {
 				lcd_goto_xy(1,0);
@@ -212,13 +207,14 @@ int main(void)
 			//Get position of Joystick0
 			INT_ARRAY position0 = getJoyStickPosition(0);
 			//Print (Xout, Yout) Joystick0 reading
-			sprintf(str, "(%d, %d) \n", position0.xy[0], position0.xy[1]);
-			UART_putstring(str);
+			/*sprintf(str, "(%d, %d) \n", position0.xy[0], position0.xy[1]);
+			UART_putstring(str);*/
 			//Get position of Joystick1
 			INT_ARRAY position1 = getJoyStickPosition(1);
 			//Print (Xout, Yout) Joystick1 reading
-			sprintf(str, "(%d, %d) \n", position1.xy[0], position1.xy[1]);
-			UART_putstring(str);
+			/*sprintf(str, "(%d, %d) \n", position1.xy[0], position1.xy[1]);
+			UART_putstring(str);*/
+			
 			
 			/* Below is just example code, which just determines if the 
 			   joysticks have been pushed to their topmost y position, 
@@ -226,19 +222,25 @@ int main(void)
 			   to implement this section (including the conditional 
 			   statements) as you wish
 			*/
+			/*
 			if (position0.xy[1] > 700) {
 				//Move right servo motor
 			}
 			if (position1.xy[1] > 700) {
 				//Move left servo motor
 			}
+			*/
 			
+			//Re-initialize break beam sensor
+			initbreakBeam();
 			//Check if bottom break beam sensor has been tripped
+			lastState2 = sensorState2;
 			sensorState2 = (PIND & (1<<PIND2));
+			//sprintf(str, "%d \n", sensorState2);
+			//UART_putstring(str);
 			if ((sensorState2 == 0) && (lastState2 > 0)) {
 				gameHasBegun = 0;
 			}
-			lastState2 = sensorState2;
 		}
 	
 		//Game is over, display "Game Over" screen and final score
