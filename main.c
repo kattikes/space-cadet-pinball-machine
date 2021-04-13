@@ -1,4 +1,4 @@
-  /*
+ /*
  * PinballMachine.c
  *
  * Created: 3/30/2021 1:24:14 PM
@@ -19,6 +19,7 @@
 volatile int gameHasBegun = 0;
 volatile int readyToUpdateScore = 0;
 volatile int score = 0;
+volatile int temp = 0;
 
 volatile int sensorState1 = 0;
 volatile int lastState1 = 0;
@@ -95,17 +96,16 @@ void initJoyStick(void) {
 void startGameTimer(void) {
 	//Disable global interrupts
 	cli();
-	//Prescale Timer 1 by 1/1024
-	TCCR1B |= (1<<CS10);
-	TCCR1B &= ~(1<<CS11);
-	TCCR1B |= (1<<CS12);
-	//Set Timer 1 to normal
-	TCCR1A &= ~(1<<WGM10);
-	TCCR1A &= ~(1<<WGM11);
-	TCCR1B &= ~(1<<WGM12);
-	TCCR1B &= ~(1<<WGM13);
-	//Enable interrupt for Timer 1
-	TIMSK1 |= (1<<OCIE1A);
+	//Prescale Timer 0 by 1/1024
+	TCCR0B |= (1<<CS00);
+	TCCR0B &= ~(1<<CS01);
+	TCCR0B |= (1<<CS02);
+	//Set Timer 0 to normal
+	TCCR0A &= ~(1<<WGM00);
+	TCCR0A &= ~(1<<WGM01);
+	TCCR0B &= ~(1<<WGM02);
+	//Enable interrupt for Timer 0
+	TIMSK0 |= (1<<OCIE0A);
 	//Enable global interrupts
 	sei();
 }
@@ -152,10 +152,14 @@ INT_ARRAY getJoyStickPosition(int joyStickName) {
 	return position;
 }
 
-//Increments score every 4 seconds
-ISR(TIMER1_COMPA_vect) {
-	score += 1;
-	readyToUpdateScore = 1;
+//Increments score approximately every 4 seconds
+ISR(TIMER0_COMPA_vect) {
+	temp++;
+	if (temp == 244) {
+		score++;
+		readyToUpdateScore = 1;
+		temp = 0;
+	}
 }
 
 int main(void)
@@ -254,3 +258,4 @@ int main(void)
 		_delay_ms(10000);
 	}
 }
+
