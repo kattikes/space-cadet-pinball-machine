@@ -26,6 +26,137 @@ volatile int lastState1 = 0;
 volatile int sensorState2 = 0;
 volatile int lastState2 = 0;
 
+// variables and arrays for the motors
+int size = 112;
+volatile int pos_bool = 0; // boolean
+volatile int left_pressed = 0; // boolean
+volatile int right_pressed = 0; // boolean
+volatile int lookup_count = 0;
+int left_pos[112] =
+{
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32
+};
+int right_pos[112] =
+{
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32
+};
+int one_pos[112] = 
+{
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64,
+	64, 64, 64, 64
+};
+int zero_pos[112] =
+{
+	32, 32, 32, 32, 
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32,
+	32, 32, 32, 32
+};
+
 typedef struct {
 	int xy[10];
 	} INT_ARRAY;
@@ -106,6 +237,33 @@ void startGameTimer(void) {
 	TCCR0B &= ~(1<<WGM02);
 	//Enable interrupt for Timer 0
 	TIMSK0 |= (1<<OCIE0A);
+	
+	///////   Timer 1 Setup ///////
+	
+	DDRB |= (1<<DDB1); // GPIO Pins Setup. OC1A
+	DDRB |= (1<<DDB5); // SCK
+	
+	DDRB |= (1<<DDB2); // OC1B for motor 2
+		
+	TCCR1B |= (1<<CS12); // Prescale of 256
+	TCCR1B &= ~(1<<CS10);
+		
+	// Phase correct PWM
+	// 8 bit, Count to TOP
+	TCCR1A |= (1<<WGM10);
+		
+	OCR1A = 5; // 50;
+	OCR1B = 5; // for motor 2
+		
+	// Enable Timer Overflow Interrupt
+	TIMSK1 |= (1<<TOIE1);
+	TIFR1 |= (1<<TOV1);
+		
+	// Non-inverting mode
+	// clear on compare match
+	TCCR1A |= (1<<COM1A1);
+	TCCR1A |= (1<<COM1B1); // for motor 2
+	
 	//Enable global interrupts
 	sei();
 }
@@ -159,6 +317,64 @@ ISR(TIMER0_COMPA_vect) {
 		score++;
 		readyToUpdateScore = 1;
 		temp = 0;
+	}
+}
+
+// Interrupt for the motors
+ISR(TIMER1_OVF_vect)
+{
+	PORTB ^= (1<<PORTB5);
+	if (lookup_count < size)
+	{
+		OCR1A = left_pos[lookup_count];
+		OCR1B = right_pos[lookup_count]; // for motor 2
+		lookup_count++;
+	}
+	else
+	{
+		lookup_count = 0;
+		if (pos_bool == 1)
+		{
+			pos_bool = 0;
+			for (int i = 0; i < size; i++)
+			{
+				left_pos[i] = zero_pos[i];
+				right_pos[i] = zero_pos[i];
+			}
+		}
+		else
+		{
+			if(left_pressed || right_pressed)
+			{
+				pos_bool = 1;
+				if(left_pressed)
+				{
+					for (int i = 0; i < size; i++)
+					{
+						left_pos[i] = one_pos[i];
+						right_pos[i] = zero_pos[i];
+					}
+				}
+				if(right_pressed)
+				{
+					for (int i = 0; i < size; i++)
+					{
+						left_pos[i] = zero_pos[i];
+						right_pos[i] = one_pos[i];
+					}
+				}
+				left_pressed = 0;
+				right_pressed = 0;
+			}
+			else
+			{
+				for (int i = 0; i < size; i++)
+				{
+					left_pos[i] = zero_pos[i];
+					right_pos[i] = zero_pos[i];
+				}
+			}
+		}
 	}
 }
 
@@ -226,14 +442,13 @@ int main(void)
 			   to implement this section (including the conditional 
 			   statements) as you wish
 			*/
-			/*
 			if (position0.xy[1] > 700) {
 				//Move right servo motor
+				right_pressed = 1;
 			}
 			if (position1.xy[1] > 700) {
-				//Move left servo motor
+				left_pressed = 1;
 			}
-			*/
 			
 			//Re-initialize break beam sensor
 			initbreakBeam();
